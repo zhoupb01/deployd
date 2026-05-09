@@ -87,6 +87,7 @@ jobs:
           severity: HIGH,CRITICAL
           exit-code: "1"
           ignore-unfixed: true
+          trivyignores: .trivyignore
           # 扫 Dockerfile 配置问题、误提交的密钥；vuln 扫描留给 image scan，避免重复噪音
           scanners: misconfig,secret
 
@@ -159,6 +160,7 @@ jobs:
           severity: HIGH,CRITICAL
           exit-code: "1"
           ignore-unfixed: true
+          trivyignores: .trivyignore
           scanners: vuln
 
       - name: Login to Aliyun registry

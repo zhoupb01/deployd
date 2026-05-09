@@ -1,0 +1,9 @@
+# Trivy 忽略列表
+# 每行一个 rule ID，加注释说明理由
+
+# DS-0002: Dockerfile missing USER directive (HIGH)
+# deployd 的工作就是通过挂载的 /var/run/docker.sock 调用 docker compose。
+# 能访问 docker socket 的进程已经等于宿主机 root（可以启动 --privileged 容器
+# 直接逃逸到宿主机），容器内 USER 是 root 还是 nobody 对实际权限边界没有
+# 影响。改非 root 反而需要去匹配宿主机 docker 组的 GID，徒增脆弱性。
+DS-0002
