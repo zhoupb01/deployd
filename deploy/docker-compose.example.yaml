@@ -1,0 +1,38 @@
+# deployd 自身的 docker-compose 部署样例
+# 部署步骤：
+#   1. cp config.example.yaml ./config.yaml  并按实际服务编辑
+#   2. cp secrets.example.env ./secrets.env  写入随机生成的 HMAC 密钥（chmod 600）
+#   3. mkdir -p ./state
+#   4. docker compose up -d
+#
+# 反代由 Traefik 通过 labels 自动接入。下面 labels 里的 "letsencrypt"、
+# "websecure"、"proxy" 网络名按你 Traefik 的实际配置改。
+
+services:
+  deployd:
+    image: registry.cn-hangzhou.aliyuncs.com/zhoupb/deployd:latest
+    container_name: deployd
+    restart: unless-stopped
+    env_file:
+      - ./secrets.env
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./config.yaml:/etc/deployd/config.yaml:ro
+      - ./state:/var/lib/deployd
+      # 关键：每个被部署的服务都要把 workdir bind 到容器内同一路径，
+      # 因为 docker compose 客户端会把 yaml 里的相对 volume 路径展开成
+      # 宿主机绝对路径再传给 daemon —— 路径不一致 daemon 会找不到。
+      - /root/gpt-image-2-web:/root/gpt-image-2-web:ro
+      # - /root/another-service:/root/another-service:ro
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.deployd.rule=Host(`deploy.example.com`)
+      - traefik.http.routers.deployd.entrypoints=websecure
+      - traefik.http.routers.deployd.tls.certresolver=letsencrypt
+      - traefik.http.services.deployd.loadbalancer.server.port=8080
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true

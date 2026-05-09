@@ -1,0 +1,18 @@
+# deployd 配置示例
+# 拷贝到 /etc/deployd/config.yaml （或通过 -config 指定路径）
+# secrets 不写在这里，用环境变量传入（见 secrets.example.env）
+
+listen: 0.0.0.0:8080            # 容器内监听地址；外部由 Traefik 反代
+state_dir: /var/lib/deployd     # 部署历史 / 状态目录（建议挂 named volume）
+
+services:
+  gpt-image-2-web:
+    secret_env: GPT_IMAGE_2_WEB_SECRET
+    workdir: /root/gpt-image-2-web   # 注意：必须 bind 到容器同路径
+    compose_service: gpt-image-2-web # 可选；不填则操作整个 compose
+    timeout: 5m
+
+  # another-service:
+  #   secret_env: ANOTHER_SERVICE_SECRET
+  #   workdir: /root/another-service
+  #   timeout: 5m

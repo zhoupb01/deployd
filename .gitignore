@@ -1,0 +1,14 @@
+# Build artifacts
+/deployd
+/dist/
+/out/
+
+# Real configs / secrets — keep only the .example.* under deploy/
+/deploy/config.yaml
+/deploy/secrets.env
+/deploy/docker-compose.yaml
+
+# IDE
+.idea/
+.vscode/
+*.swp
