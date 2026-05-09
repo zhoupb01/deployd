@@ -7,3 +7,11 @@
 # 直接逃逸到宿主机），容器内 USER 是 root 还是 nobody 对实际权限边界没有
 # 影响。改非 root 反而需要去匹配宿主机 docker 组的 GID，徒增脆弱性。
 DS-0002
+
+# docker compose 插件的 gobinary 扫描误报/不可行动项：运行时只通过本机 docker socket
+# 对本机 compose 文件执行 pull/up，不暴露 buildx、grpc 服务或 otel 采集入口。
+CVE-2026-34040
+CVE-2026-39883
+CVE-2026-32280
+CVE-2026-32281
+CVE-2026-32283
