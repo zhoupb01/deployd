@@ -13,7 +13,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 
 # docker:cli ships the docker client and the compose plugin.
 FROM docker:29.4.1-cli
-RUN apk add --no-cache ca-certificates tzdata
+RUN apk add --no-cache ca-certificates tzdata libcurl \
+    && rm -f /usr/local/libexec/docker/cli-plugins/docker-buildx
 COPY --from=builder /out/deployd /usr/local/bin/deployd
 EXPOSE 8080
 ENTRYPOINT ["/usr/local/bin/deployd"]
