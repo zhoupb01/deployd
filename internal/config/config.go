@@ -36,7 +36,7 @@ type ServiceConfig struct {
 }
 
 func Load(path string) (*Config, error) {
-	raw, err := os.ReadFile(path)
+	raw, err := os.ReadFile(path) // #nosec G304 -- path comes from operator-supplied -config flag, not user input
 	if err != nil {
 		return nil, fmt.Errorf("read config: %w", err)
 	}
