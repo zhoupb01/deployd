@@ -30,6 +30,12 @@ const (
 	historyFile = "history.jsonl"
 )
 
+var pullRetryDelays = []time.Duration{
+	5 * time.Second,
+	15 * time.Second,
+	30 * time.Second,
+}
+
 var (
 	ErrUnknownService = errors.New("unknown service")
 	ErrBusy           = errors.New("service is currently being deployed")
@@ -142,25 +148,63 @@ func runCompose(ctx context.Context, cfg *config.ServiceConfig, out *bytes.Buffe
 	if _, err := os.Stat(cfg.Workdir); err != nil {
 		return fmt.Errorf("workdir missing: %w", err)
 	}
-	cmds := [][]string{
-		{"docker", "compose", "pull"},
-		{"docker", "compose", "up", "-d", "--wait"},
-	}
+	pullArgs := []string{"docker", "compose", "pull"}
+	upArgs := []string{"docker", "compose", "up", "-d", "--wait"}
 	if cfg.ComposeService != "" {
-		cmds[0] = append(cmds[0], cfg.ComposeService)
-		cmds[1] = append(cmds[1], cfg.ComposeService)
+		pullArgs = append(pullArgs, cfg.ComposeService)
+		upArgs = append(upArgs, cfg.ComposeService)
 	}
-	for _, args := range cmds {
-		fmt.Fprintf(out, "\n$ %s\n", strings.Join(args, " "))
-		cmd := exec.CommandContext(ctx, args[0], args[1:]...)
-		cmd.Dir = cfg.Workdir
-		cmd.Stdout = out
-		cmd.Stderr = out
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("%s failed: %w", strings.Join(args, " "), err)
+
+	if err := runComposeCommandWithRetry(ctx, cfg, out, pullArgs, pullRetryDelays); err != nil {
+		return err
+	}
+	return runComposeCommand(ctx, cfg, out, upArgs)
+}
+
+func runComposeCommandWithRetry(ctx context.Context, cfg *config.ServiceConfig, out *bytes.Buffer, args []string, delays []time.Duration) error {
+	var lastErr error
+	for attempt := 0; attempt <= len(delays); attempt++ {
+		if attempt > 0 {
+			delay := delays[attempt-1]
+			fmt.Fprintf(out, "\nretry %d/%d after %s: %s\n", attempt+1, len(delays)+1, delay, strings.Join(args, " "))
+			if err := sleepContext(ctx, delay); err != nil {
+				return fmt.Errorf("%s retry canceled: %w (last error: %v)", strings.Join(args, " "), err, lastErr)
+			}
+		}
+
+		err := runComposeCommand(ctx, cfg, out, args)
+		if err == nil {
+			return nil
+		}
+		lastErr = err
+		if ctx.Err() != nil {
+			return err
 		}
 	}
+	return lastErr
+}
+
+func runComposeCommand(ctx context.Context, cfg *config.ServiceConfig, out *bytes.Buffer, args []string) error {
+	fmt.Fprintf(out, "\n$ %s\n", strings.Join(args, " "))
+	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
+	cmd.Dir = cfg.Workdir
+	cmd.Stdout = out
+	cmd.Stderr = out
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("%s failed: %w", strings.Join(args, " "), err)
+	}
 	return nil
+}
+
+func sleepContext(ctx context.Context, d time.Duration) error {
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func (m *Manager) appendHistory(rec *Record) error {
